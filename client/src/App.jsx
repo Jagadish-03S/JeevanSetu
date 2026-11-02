@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { translations } from './translations/translations';
 import { EmergencyBanner } from './components/EmergencyBanner';
 import { Navbar } from './components/Navbar';
@@ -10,20 +10,37 @@ import { FaqSection } from './components/FaqSection';
 import { Footer } from './components/Footer';
 import { DonorRegisterModal } from './components/DonorRegisterModal';
 import { BloodRequestModal } from './components/BloodRequestModal';
+import { LoginModal } from './components/LoginModal';
 import { DonorDashboard } from './components/dashboards/DonorDashboard';
 import { RequesterDashboard } from './components/dashboards/RequesterDashboard';
 import { HospitalDashboard } from './components/dashboards/HospitalDashboard';
 import { AdminDashboard } from './components/dashboards/AdminDashboard';
-import { ArrowLeft, UserCheck, FileText, Building2, ShieldCheck, Globe } from 'lucide-react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { initSocket } from './services/api';
+import { ArrowLeft, UserCheck, FileText, Building2, ShieldCheck, Globe, Bell } from 'lucide-react';
 
-export function App() {
+function AppContent() {
+  const { user, activeRole, setActiveRole } = useAuth();
   const [currentLang, setCurrentLang] = useState('en');
-  const [activeRole, setActiveRole] = useState('visitor');
   const [activeView, setActiveView] = useState('home'); // 'home' | 'dashboard'
   const [isDonorModalOpen, setIsDonorModalOpen] = useState(false);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [liveAlert, setLiveAlert] = useState(null);
 
   const t = translations[currentLang] || translations.en;
+
+  // Real-time socket listener
+  useEffect(() => {
+    initSocket((event) => {
+      if (event.type === 'NEW_REQUEST') {
+        setLiveAlert(`Urgent Requisition: ${event.data.blood_group} requested at ${event.data.hospital_name}`);
+      } else if (event.type === 'STATUS_UPDATE') {
+        setLiveAlert(`Status Update: Request ${event.data.tracking_code} is now ${event.data.status}`);
+      }
+      setTimeout(() => setLiveAlert(null), 6000);
+    });
+  }, []);
 
   const roleLabels = {
     visitor: "Public Visitor",
@@ -37,6 +54,14 @@ export function App() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-navy-900 selection:bg-crimson-100 selection:text-crimson-700">
       
+      {/* Real-time Alert Toast */}
+      {liveAlert && (
+        <div className="fixed top-16 right-4 z-50 bg-navy-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-lg border border-slate-700 flex items-center gap-2 animate-bounce">
+          <Bell className="w-4 h-4 text-amber-400" />
+          <span>{liveAlert}</span>
+        </div>
+      )}
+
       {/* 1. Emergency Top Ribbon */}
       <EmergencyBanner 
         currentLang={currentLang} 
@@ -54,6 +79,7 @@ export function App() {
         setActiveView={setActiveView}
         onOpenDonorModal={() => setIsDonorModalOpen(true)}
         onOpenRequestModal={() => setIsRequestModalOpen(true)}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
       />
 
       {/* 3. Main Content Area */}
@@ -181,7 +207,7 @@ export function App() {
                 <Globe className="w-12 h-12 text-slate-400 mx-auto mb-3" />
                 <h3 className="text-lg font-bold text-navy-900">You are in Public Visitor Mode</h3>
                 <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                  Select a specific role above (Voluntary Donor, Patient/Requester, Hospital Staff, or Admin) to test the corresponding dedicated portal.
+                  Select a role above or sign in with a demo role account to explore role-specific workflows.
                 </p>
               </div>
             )}
@@ -215,8 +241,25 @@ export function App() {
         }}
       />
 
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onAuthSuccess={() => {
+          setActiveView('dashboard');
+        }}
+      />
+
     </div>
   );
 }
 
+export function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
 export default App;
+

@@ -12,8 +12,12 @@ import {
   Building, 
   Building2, 
   LayoutDashboard,
-  HelpCircle
+  HelpCircle,
+  LogIn,
+  LogOut,
+  User
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export const Navbar = ({ 
   currentLang, 
@@ -24,8 +28,10 @@ export const Navbar = ({
   activeView,
   setActiveView,
   onOpenDonorModal,
-  onOpenRequestModal
+  onOpenRequestModal,
+  onOpenLoginModal
 }) => {
+  const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const t = translations[currentLang] || translations.en;
 
@@ -199,6 +205,30 @@ export const Navbar = ({
               <FileText className="w-3.5 h-3.5" />
               <span>Request Blood</span>
             </button>
+
+            {/* Auth Action */}
+            {user ? (
+              <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+                <span className="text-xs font-semibold text-slate-700 max-w-[120px] truncate" title={user.email}>
+                  {user.full_name}
+                </span>
+                <button
+                  onClick={logout}
+                  className="p-1.5 text-slate-400 hover:text-crimson-600 rounded-lg hover:bg-slate-100 transition"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenLoginModal}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+              >
+                <LogIn className="w-3.5 h-3.5 text-slate-600" />
+                <span>Sign In</span>
+              </button>
+            )}
 
           </div>
 
